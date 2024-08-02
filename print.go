@@ -14,8 +14,9 @@ func printMapDiff(diff Map, indentationLevel int) string {
 	for propertyKey, propertyValue := range diff {
 		isLastProperty := propertyIndex == len(diff)-1
 		prefix, tab := getPrefixSpacers(propertyKey, indentationLevel)
+		isAdditionOrRemoval := len(prefix) > 0
 
-		if len(prefix) > 0 {
+		if isAdditionOrRemoval {
 			propertyPrints = append(
 				propertyPrints,
 				printWholePropertyDiff(
@@ -24,6 +25,15 @@ func printMapDiff(diff Map, indentationLevel int) string {
 					isLastProperty,
 					prefix,
 					tab,
+				),
+			)
+		} else {
+			propertyPrints = append(
+				propertyPrints,
+				printPartialPropertyDiff(
+					propertyKey,
+					propertyValue,
+					indentationLevel,
 				),
 			)
 		}
@@ -86,6 +96,69 @@ func printWholePropertyDiff(
 		} else {
 			printBuilder.WriteString(line + suffix)
 		}
+	}
+
+	return printBuilder.String()
+}
+
+func printPartialPropertyDiff(
+	key string,
+	value any,
+	indentationLevel int,
+) string {
+	var openBracket string
+	var closeBracket string
+
+	var printBuilder strings.Builder
+
+	switch (value).(type) {
+	case Map:
+		openBracket = "{"
+		closeBracket = "}"
+	case []Slice:
+		openBracket = "["
+		closeBracket = "]"
+	}
+
+	_, tab := getPrefixSpacers(key, indentationLevel)
+
+	printBuilder.WriteString("   " + tab + key + ": " + openBracket + "\n")
+
+	switch value := (value).(type) {
+	case Map:
+		printBuilder.WriteString(printMapDiff(value, indentationLevel+1))
+	case []Slice:
+		printBuilder.WriteString(printSliceDiff(value, indentationLevel+1))
+	}
+
+	printBuilder.WriteString("\n   " + tab + closeBracket)
+
+	return printBuilder.String()
+}
+
+func printSliceDiff(slices []Slice, indentationLevel int) string {
+	var printBuilder strings.Builder
+
+	for index, pair := range slices {
+		if len(pair) != 2 {
+			panic("malformed slice pair for slice diff")
+		}
+
+		suffix := ""
+
+		if index < len(slices)-1 {
+			suffix = ",\n"
+		}
+
+		prefix, tab := getPrefixSpacers(pair[0].(string), indentationLevel)
+
+		if len(prefix) > 0 {
+			printBuilder.WriteString(prefix)
+		} else {
+			printBuilder.WriteString("   ")
+		}
+
+		printBuilder.WriteString(tab + formatValue(pair[1]) + suffix)
 	}
 
 	return printBuilder.String()
