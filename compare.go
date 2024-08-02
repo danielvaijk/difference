@@ -20,7 +20,7 @@ func compareMaps(diff, expected, received *Map, propertyPath ...string) {
 		expectedKey = propertyPath[0] + expectedKey
 
 		if !wasFound {
-			registerPropertyRemoval(diff, expectedKey, expectedValue)
+			registerRemovedProperty(diff, expectedKey, expectedValue)
 			continue
 		}
 
@@ -28,56 +28,123 @@ func compareMaps(diff, expected, received *Map, propertyPath ...string) {
 		receivedType := reflect.TypeOf(receivedValue)
 
 		if expectedType != receivedType {
-			registerPropertyChange(diff, expectedKey, expectedValue, receivedValue)
+			registerChangedProperty(diff, expectedKey, expectedValue, receivedValue)
 			continue
 		}
 
 		switch expectedValue := expectedValue.(type) {
 		case Map:
-			nestedDiff := make(Map)
+			mapDiff := make(Map)
 			receivedMap := receivedValue.(Map)
 
 			compareMaps(
-				&nestedDiff,
+				&mapDiff,
 				&expectedValue,
 				&receivedMap,
 				expectedKey+".",
 			)
 
-			if len(nestedDiff) > 0 {
-				registerNestedDiff(diff, expectedKey, &nestedDiff)
+			if len(mapDiff) > 0 {
+				registerNestedDiff(diff, expectedKey, mapDiff)
 			}
 		case Slice:
-			if !reflect.DeepEqual(expectedValue, receivedValue) {
-				registerPropertyChange(diff, expectedKey, expectedValue, receivedValue)
+			sliceDiff := make([]Slice, 0)
+			receivedSlice := receivedValue.(Slice)
+
+			compareSlices(
+				&sliceDiff,
+				&expectedValue,
+				&receivedSlice,
+			)
+
+			if len(sliceDiff) > 0 {
+				registerNestedDiff(diff, expectedKey, sliceDiff)
 			}
 		default:
 			if expectedValue != receivedValue {
-				registerPropertyChange(diff, expectedKey, expectedValue, receivedValue)
+				registerChangedProperty(diff, expectedKey, expectedValue, receivedValue)
 			}
 		}
 	}
 
 	for receivedKey, receivedValue := range *received {
 		if _, wasFound := (*expected)[receivedKey]; !wasFound {
-			registerPropertyAddition(diff, propertyPath[0]+receivedKey, receivedValue)
+			registerAddedProperty(diff, propertyPath[0]+receivedKey, receivedValue)
 		}
 	}
 }
 
-func registerPropertyRemoval(diff *Map, propertyKey string, propertyValue any) {
+func compareSlices(diff *[]Slice, expected, received *Slice) {
+	expectedIndex := 0
+	receivedIndex := 0
+
+	for {
+		isExpectedOutOfBounds := expectedIndex > len(*expected)-1
+		isReceivedOutOfBounds := receivedIndex > len(*received)-1
+
+		if isReceivedOutOfBounds {
+			break
+		}
+
+		if !isExpectedOutOfBounds && (*expected)[expectedIndex] == (*received)[receivedIndex] {
+			registerMutualValue(diff, (*expected)[expectedIndex])
+			expectedIndex++
+			receivedIndex++
+			continue
+		}
+
+		// Any differences at the start are considered removals.
+		if receivedIndex == 0 {
+			registerRemovedValue(diff, (*expected)[expectedIndex])
+			expectedIndex++
+			continue
+		}
+
+		// Any differences at the end are considered additions.
+		if isExpectedOutOfBounds {
+			registerAddedValue(diff, (*received)[receivedIndex])
+			receivedIndex++
+			continue
+		}
+
+		// Any differences between the start and end are considered changes.
+		registerChangedValue(diff, (*expected)[expectedIndex], (*received)[receivedIndex])
+
+		expectedIndex++
+		receivedIndex++
+	}
+}
+
+func registerRemovedProperty(diff *Map, propertyKey string, propertyValue any) {
 	(*diff)[removed+propertyKey] = propertyValue
 }
 
-func registerPropertyAddition(diff *Map, propertyKey string, propertyValue any) {
+func registerAddedProperty(diff *Map, propertyKey string, propertyValue any) {
 	(*diff)[added+propertyKey] = propertyValue
 }
 
-func registerPropertyChange(diff *Map, propertyKey string, expectedValue, receivedValue any) {
-	(*diff)[removed+propertyKey] = expectedValue
-	(*diff)[added+propertyKey] = receivedValue
+func registerChangedProperty(diff *Map, propertyKey string, expectedValue, receivedValue any) {
+	registerRemovedProperty(diff, propertyKey, expectedValue)
+	registerAddedProperty(diff, propertyKey, receivedValue)
 }
 
-func registerNestedDiff(diff *Map, propertyKey string, nestedDiff *Map) {
+func registerNestedDiff(diff *Map, propertyKey string, nestedDiff any) {
 	(*diff)[common+propertyKey] = nestedDiff
+}
+
+func registerRemovedValue(diff *[]Slice, value any) {
+	*diff = append(*diff, Slice{removed, value})
+}
+
+func registerAddedValue(diff *[]Slice, value any) {
+	*diff = append(*diff, Slice{added, value})
+}
+
+func registerChangedValue(diff *[]Slice, expectedValue, receivedValue any) {
+	registerRemovedValue(diff, expectedValue)
+	registerAddedValue(diff, receivedValue)
+}
+
+func registerMutualValue(diff *[]Slice, mutualValue any) {
+	*diff = append(*diff, Slice{common, mutualValue})
 }
