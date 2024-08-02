@@ -1,7 +1,6 @@
 package difference
 
 import (
-	"io"
 	"reflect"
 )
 
@@ -10,24 +9,6 @@ const (
 	removed = "-"
 	common  = " "
 )
-
-func CompareJson(expected, received io.Reader) (Map, error) {
-	var expectedJson Map
-	var receivedJson Map
-
-	if err := decodeJsonIntoMap(expected, &expectedJson); err != nil {
-		return nil, err
-	}
-
-	if err := decodeJsonIntoMap(received, &receivedJson); err != nil {
-		return nil, err
-	}
-
-	diff := make(Map)
-	compareMaps(&diff, &expectedJson, &receivedJson)
-
-	return diff, nil
-}
 
 func compareMaps(diff, expected, received *Map, propertyPath ...string) {
 	if len(propertyPath) == 0 {
