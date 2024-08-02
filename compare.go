@@ -7,7 +7,7 @@ import (
 const (
 	added   = "+"
 	removed = "-"
-	common  = " "
+	common  = ""
 )
 
 func compareMaps(diff, expected, received *Map, propertyPath ...string) {

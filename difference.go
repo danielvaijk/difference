@@ -2,6 +2,7 @@ package difference
 
 import (
 	"io"
+	"strings"
 )
 
 type Slice = []any
@@ -23,4 +24,20 @@ func BetweenJson(expected, received io.Reader) (Map, error) {
 	compareMaps(&diff, &expectedJson, &receivedJson)
 
 	return diff, nil
+}
+
+func GenerateReport(diff Map) string {
+	var report strings.Builder
+
+	report.WriteString("\n")
+	report.WriteString(printRed("- Expected\n"))
+	report.WriteString(printGreen("+ Received\n\n"))
+
+	report.WriteString("  {")
+	report.WriteString("\n")
+	report.WriteString(printMapDiff(diff, 1))
+	report.WriteString("\n")
+	report.WriteString("  }")
+
+	return report.String()
 }
