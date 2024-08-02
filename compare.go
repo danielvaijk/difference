@@ -54,11 +54,12 @@ func compareMaps(diff, expected, received *Map, propertyPath ...string) {
 		switch expectedValue := expectedValue.(type) {
 		case Map:
 			nestedDiff := make(Map)
+			receivedMap := receivedValue.(Map)
 
 			compareMaps(
 				&nestedDiff,
 				&expectedValue,
-				receivedValue.(*Map),
+				&receivedMap,
 				expectedKey+".",
 			)
 
