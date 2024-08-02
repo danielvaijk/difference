@@ -1,4 +1,4 @@
-package indifferent
+package difference
 
 import (
 	"io"
