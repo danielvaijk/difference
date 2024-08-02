@@ -5,38 +5,29 @@ import (
 	"strings"
 )
 
-func printMapDiff(diff Map, indentationLevel int) string {
-	var propertyPrints []string
+func printMapDiff(diff *Map, indentationLevel int, sign string) string {
 	var printBuilder strings.Builder
 
 	propertyIndex := 0
+	propertyPrints := make([]string, 0)
 
-	for propertyKey, propertyValue := range diff {
-		isLastProperty := propertyIndex == len(diff)-1
-		prefix, tab := getPrefixSpacers(propertyKey, indentationLevel)
-		isAdditionOrRemoval := len(prefix) > 0
+	for propertyKey, propertyValue := range *diff {
+		suffix := ""
+		isLastProperty := propertyIndex == len(*diff)-1
 
-		if isAdditionOrRemoval {
-			propertyPrints = append(
-				propertyPrints,
-				printWholePropertyDiff(
-					propertyKey,
-					propertyValue,
-					isLastProperty,
-					prefix,
-					tab,
-				),
-			)
-		} else {
-			propertyPrints = append(
-				propertyPrints,
-				printPartialPropertyDiff(
-					propertyKey,
-					propertyValue,
-					indentationLevel,
-				),
-			)
+		if !isLastProperty {
+			suffix = ","
 		}
+
+		propertyPrints = append(
+			propertyPrints,
+			printPropertyDiff(
+				sign+propertyKey,
+				propertyValue,
+				indentationLevel,
+				suffix,
+			),
+		)
 
 		propertyIndex++
 	}
@@ -46,19 +37,14 @@ func printMapDiff(diff Map, indentationLevel int) string {
 		isLastProperty := propertyIndex == len(propertyPrints)-1
 
 		for lineIndex, printLine := range printLines {
-			suffix := ""
 			isLastLine := lineIndex == len(printLines)-1
 
-			if !isLastProperty && isLastLine {
-				suffix = ","
-			}
-
-			if strings.HasPrefix(printLine, "-") {
+			if strings.HasPrefix(printLine, removed) {
 				printBuilder.WriteString(printRed(printLine))
-			} else if strings.HasPrefix(printLine, "+") {
+			} else if strings.HasPrefix(printLine, added) {
 				printBuilder.WriteString(printGreen(printLine))
 			} else {
-				printBuilder.WriteString(printLine + suffix)
+				printBuilder.WriteString(printLine)
 			}
 
 			if !isLastProperty || !isLastLine {
@@ -70,95 +56,84 @@ func printMapDiff(diff Map, indentationLevel int) string {
 	return printBuilder.String()
 }
 
-func printWholePropertyDiff(
-	key string,
-	value any,
-	isLast bool,
-	prefix string,
-	tab string,
-) string {
-	var printBuilder strings.Builder
-
-	for index, line := range strings.Split(formatValue(value), "\n") {
-		printBuilder.WriteString(prefix + tab)
-
-		propertyNames := strings.Split(key[1:], ".")
-		propertyName := propertyNames[len(propertyNames)-1]
-
-		suffix := ""
-
-		if !isLast {
-			suffix = ","
-		}
-
-		if index == 0 {
-			printBuilder.WriteString(propertyName + ": " + line + suffix)
-		} else {
-			printBuilder.WriteString(line + suffix)
-		}
-	}
-
-	return printBuilder.String()
-}
-
-func printPartialPropertyDiff(
+func printPropertyDiff(
 	key string,
 	value any,
 	indentationLevel int,
+	suffix string,
 ) string {
-	var openBracket string
-	var closeBracket string
-
 	var printBuilder strings.Builder
 
-	switch (value).(type) {
-	case Map:
-		openBracket = "{"
-		closeBracket = "}"
-	case []Slice:
-		openBracket = "["
-		closeBracket = "]"
-	}
+	prefix, indentation := getPrefixSpacers(key, indentationLevel)
 
-	_, tab := getPrefixSpacers(key, indentationLevel)
+	sign := strings.TrimSpace(prefix)
+	keyWithoutSign, _ := strings.CutPrefix(key, sign)
+	propertyNames := strings.Split(keyWithoutSign, ".")
+	propertyName := propertyNames[len(propertyNames)-1]
 
-	printBuilder.WriteString("   " + tab + key + ": " + openBracket + "\n")
+	printBuilder.WriteString(prefix)
+	printBuilder.WriteString(indentation)
+	printBuilder.WriteString(propertyName)
+	printBuilder.WriteString(": ")
 
 	switch value := (value).(type) {
 	case Map:
-		printBuilder.WriteString(printMapDiff(value, indentationLevel+1))
+		printBuilder.WriteString("{")
+		printBuilder.WriteString("\n")
 	case []Slice:
-		printBuilder.WriteString(printSliceDiff(value, indentationLevel+1))
+		printBuilder.WriteString("[")
+		printBuilder.WriteString("\n")
+	default:
+		printBuilder.WriteString(formatValue(prefix+indentation, value))
+		printBuilder.WriteString(suffix)
 	}
 
-	printBuilder.WriteString("\n   " + tab + closeBracket)
+	switch value := (value).(type) {
+	case Map:
+		printBuilder.WriteString(printMapDiff(&value, indentationLevel+1, sign))
+	case []Slice:
+		printBuilder.WriteString(printSliceDiff(&value, indentationLevel+1))
+	}
+
+	switch (value).(type) {
+	case Map:
+		printBuilder.WriteString("\n")
+		printBuilder.WriteString(prefix)
+		printBuilder.WriteString(indentation)
+		printBuilder.WriteString("}")
+		printBuilder.WriteString(suffix)
+	case []Slice:
+		printBuilder.WriteString("\n")
+		printBuilder.WriteString(prefix)
+		printBuilder.WriteString(indentation)
+		printBuilder.WriteString("]")
+		printBuilder.WriteString(suffix)
+	}
 
 	return printBuilder.String()
 }
 
-func printSliceDiff(slices []Slice, indentationLevel int) string {
+func printSliceDiff(slices *[]Slice, indentationLevel int) string {
 	var printBuilder strings.Builder
 
-	for index, pair := range slices {
+	for index, pair := range *slices {
 		if len(pair) != 2 {
 			panic("malformed slice pair for slice diff")
 		}
 
-		suffix := ""
+		prefix, indentation := getPrefixSpacers(
+			pair[0].(string),
+			indentationLevel,
+		)
 
-		if index < len(slices)-1 {
-			suffix = ",\n"
+		printBuilder.WriteString(prefix)
+		printBuilder.WriteString(indentation)
+		printBuilder.WriteString(formatValue("", pair[1]))
+
+		if index < len(*slices)-1 {
+			printBuilder.WriteString(",")
+			printBuilder.WriteString("\n")
 		}
-
-		prefix, tab := getPrefixSpacers(pair[0].(string), indentationLevel)
-
-		if len(prefix) > 0 {
-			printBuilder.WriteString(prefix)
-		} else {
-			printBuilder.WriteString("   ")
-		}
-
-		printBuilder.WriteString(tab + formatValue(pair[1]) + suffix)
 	}
 
 	return printBuilder.String()
