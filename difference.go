@@ -30,12 +30,15 @@ func GenerateReport(diff Map) string {
 	var report strings.Builder
 
 	report.WriteString("\n")
-	report.WriteString(printRed("- Expected\n"))
-	report.WriteString(printGreen("+ Received\n\n"))
+	report.WriteString(printRed("- Expected"))
+	report.WriteString("\n")
+	report.WriteString(printGreen("+ Received"))
+	report.WriteString("\n")
+	report.WriteString("\n")
 
 	report.WriteString("  {")
 	report.WriteString("\n")
-	report.WriteString(printMapDiff(diff, 1))
+	report.WriteString(printMapDiff(diff, 1, ""))
 	report.WriteString("\n")
 	report.WriteString("  }")
 
