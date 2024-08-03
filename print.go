@@ -84,7 +84,7 @@ func printPropertyDiff(
 	var propertySign rune
 	var propertyPrint strings.Builder
 
-	if parentSign != nil && *parentSign != common {
+	if parentSign != nil && *parentSign != unchanged {
 		propertySign = *parentSign
 	} else {
 		propertySign = rune(propertyKey[0])
