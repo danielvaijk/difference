@@ -123,7 +123,7 @@ func registerChangedProperty(diff *Map, propertyKey string, expectedValue, recei
 }
 
 func registerNestedDiff(diff *Map, propertyKey string, nestedDiff any) {
-	(*diff)[string(common)+propertyKey] = nestedDiff
+	(*diff)[string(unchanged)+propertyKey] = nestedDiff
 }
 
 func registerRemovedValue(diff *[]Slice, value any) {
@@ -140,5 +140,5 @@ func registerChangedValue(diff *[]Slice, expectedValue, receivedValue any) {
 }
 
 func registerMutualValue(diff *[]Slice, mutualValue any) {
-	*diff = append(*diff, Slice{common, mutualValue})
+	*diff = append(*diff, Slice{unchanged, mutualValue})
 }

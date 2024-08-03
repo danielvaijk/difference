@@ -1,9 +1,9 @@
 package difference
 
 const (
-	added   = '+'
-	removed = '-'
-	common  = ' '
+	added     = '+'
+	removed   = '-'
+	unchanged = ' '
 )
 
 func isChangeSet(currentSign rune, upcomingSign rune) bool {
