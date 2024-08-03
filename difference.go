@@ -38,7 +38,7 @@ func GenerateReport(diff Map) string {
 
 	report.WriteString("  {")
 	report.WriteString("\n")
-	report.WriteString(printMapDiff(diff, 1, ""))
+	report.WriteString(printMapDiff(jd.diff, 1, nil))
 	report.WriteString("\n")
 	report.WriteString("  }")
 

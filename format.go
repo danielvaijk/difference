@@ -75,14 +75,6 @@ func formatSlice(prefix string, slice []any) string {
 	return output.String()
 }
 
-func getPrefixSpacers(key string, indentationLevel int) (string, string) {
-	indentation := strings.Repeat(tab, indentationLevel)
-
-	if strings.HasPrefix(key, removed) {
-		return removed + "  ", indentation
-	} else if strings.HasPrefix(key, added) {
-		return added + "  ", indentation
-	} else {
-		return "   ", indentation
-	}
+func getPrefixSpacers(sign rune, indentationLevel int) (string, string) {
+	return string(sign) + tab, strings.Repeat(tab, indentationLevel)
 }
