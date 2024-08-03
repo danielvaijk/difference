@@ -9,12 +9,14 @@ const tab = "  "
 
 func formatValue(prefix string, value any) string {
 	switch value := value.(type) {
-	case string:
-		return fmt.Sprintf("%q", value)
 	case Map:
 		return formatMap(prefix, value)
 	case Slice:
 		return formatSlice(prefix, value)
+	case nil:
+		return "null"
+	case string:
+		return fmt.Sprintf("%q", value)
 	default:
 		return fmt.Sprintf("%v", value)
 	}
