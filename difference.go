@@ -8,9 +8,14 @@ import (
 type Slice = []any
 type Map = map[string]any
 
-func BetweenJson(expected, received io.Reader) (Map, error) {
-	var expectedJson Map
-	var receivedJson Map
+type JsonDifference struct {
+	diff *Map
+}
+
+func BetweenJson(expected, received io.Reader) (*JsonDifference, error) {
+	diff := make(Map)
+	expectedJson := make(Map)
+	receivedJson := make(Map)
 
 	if err := decodeJsonIntoMap(expected, &expectedJson); err != nil {
 		return nil, err
@@ -20,13 +25,16 @@ func BetweenJson(expected, received io.Reader) (Map, error) {
 		return nil, err
 	}
 
-	diff := make(Map)
 	compareMaps(&diff, &expectedJson, &receivedJson)
 
-	return diff, nil
+	return &JsonDifference{&diff}, nil
 }
 
-func GenerateReport(diff Map) string {
+func (jd *JsonDifference) HasDifferences() bool {
+	return len(*jd.diff) > 0
+}
+
+func (jd *JsonDifference) GenerateReport() string {
 	var report strings.Builder
 
 	report.WriteString("\n")
