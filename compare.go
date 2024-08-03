@@ -4,12 +4,6 @@ import (
 	"reflect"
 )
 
-const (
-	added   = "+"
-	removed = "-"
-	common  = ""
-)
-
 func compareMaps(diff, expected, received *Map, propertyPath ...string) {
 	if len(propertyPath) == 0 {
 		propertyPath = append(propertyPath, "")
