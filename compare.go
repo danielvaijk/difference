@@ -110,11 +110,11 @@ func compareSlices(diff *[]Slice, expected, received *Slice) {
 }
 
 func registerRemovedProperty(diff *Map, propertyKey string, propertyValue any) {
-	(*diff)[removed+propertyKey] = propertyValue
+	(*diff)[string(removed)+propertyKey] = propertyValue
 }
 
 func registerAddedProperty(diff *Map, propertyKey string, propertyValue any) {
-	(*diff)[added+propertyKey] = propertyValue
+	(*diff)[string(added)+propertyKey] = propertyValue
 }
 
 func registerChangedProperty(diff *Map, propertyKey string, expectedValue, receivedValue any) {
@@ -123,7 +123,7 @@ func registerChangedProperty(diff *Map, propertyKey string, expectedValue, recei
 }
 
 func registerNestedDiff(diff *Map, propertyKey string, nestedDiff any) {
-	(*diff)[common+propertyKey] = nestedDiff
+	(*diff)[string(common)+propertyKey] = nestedDiff
 }
 
 func registerRemovedValue(diff *[]Slice, value any) {
