@@ -45,13 +45,13 @@ func compareMaps(diff, expected, received *Map, propertyPath ...string) {
 			sliceDiff := make([]Slice, 0)
 			receivedSlice := receivedValue.(Slice)
 
-			compareSlices(
+			hasDifferences := compareSlices(
 				&sliceDiff,
 				&expectedValue,
 				&receivedSlice,
 			)
 
-			if len(sliceDiff) > 0 {
+			if hasDifferences {
 				registerNestedDiff(diff, expectedKey, sliceDiff)
 			}
 		default:
@@ -68,9 +68,11 @@ func compareMaps(diff, expected, received *Map, propertyPath ...string) {
 	}
 }
 
-func compareSlices(diff *[]Slice, expected, received *Slice) {
+func compareSlices(diff *[]Slice, expected, received *Slice) bool {
 	expectedIndex := 0
 	receivedIndex := 0
+
+	hasDifferences := false
 
 	for {
 		isExpectedOutOfBounds := expectedIndex > len(*expected)-1
@@ -90,6 +92,7 @@ func compareSlices(diff *[]Slice, expected, received *Slice) {
 		// Any differences at the start are considered removals.
 		if receivedIndex == 0 {
 			registerRemovedValue(diff, (*expected)[expectedIndex])
+			hasDifferences = true
 			expectedIndex++
 			continue
 		}
@@ -97,16 +100,19 @@ func compareSlices(diff *[]Slice, expected, received *Slice) {
 		// Any differences at the end are considered additions.
 		if isExpectedOutOfBounds {
 			registerAddedValue(diff, (*received)[receivedIndex])
+			hasDifferences = true
 			receivedIndex++
 			continue
 		}
 
 		// Any differences between the start and end are considered changes.
 		registerChangedValue(diff, (*expected)[expectedIndex], (*received)[receivedIndex])
-
+		hasDifferences = true
 		expectedIndex++
 		receivedIndex++
 	}
+
+	return hasDifferences
 }
 
 func registerRemovedProperty(diff *Map, propertyKey string, propertyValue any) {
