@@ -82,8 +82,30 @@ func compareSlices(diff *[]Slice, expected, received *Slice) bool {
 			break
 		}
 
-		if !isExpectedOutOfBounds && (*expected)[expectedIndex] == (*received)[receivedIndex] {
-			registerMutualValue(diff, (*expected)[expectedIndex])
+		receivedValue := (*received)[receivedIndex]
+
+		// Any differences at the end are considered additions.
+		if isExpectedOutOfBounds {
+			registerAddedValue(diff, receivedValue)
+			hasDifferences = true
+			receivedIndex++
+			continue
+		}
+
+		isBothMutual := false
+		expectedValue := (*expected)[expectedIndex]
+
+		switch expectedValue := expectedValue.(type) {
+		case Map:
+			isBothMutual = reflect.DeepEqual(expectedValue, receivedValue)
+		case Slice:
+			isBothMutual = reflect.DeepEqual(expectedValue, receivedValue)
+		default:
+			isBothMutual = expectedValue == receivedValue
+		}
+
+		if isBothMutual {
+			registerMutualValue(diff, expectedValue)
 			expectedIndex++
 			receivedIndex++
 			continue
@@ -91,22 +113,14 @@ func compareSlices(diff *[]Slice, expected, received *Slice) bool {
 
 		// Any differences at the start are considered removals.
 		if receivedIndex == 0 {
-			registerRemovedValue(diff, (*expected)[expectedIndex])
+			registerRemovedValue(diff, expectedValue)
 			hasDifferences = true
 			expectedIndex++
 			continue
 		}
 
-		// Any differences at the end are considered additions.
-		if isExpectedOutOfBounds {
-			registerAddedValue(diff, (*received)[receivedIndex])
-			hasDifferences = true
-			receivedIndex++
-			continue
-		}
-
 		// Any differences between the start and end are considered changes.
-		registerChangedValue(diff, (*expected)[expectedIndex], (*received)[receivedIndex])
+		registerChangedValue(diff, expectedValue, receivedValue)
 		hasDifferences = true
 		expectedIndex++
 		receivedIndex++

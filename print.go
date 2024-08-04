@@ -150,7 +150,7 @@ func printSliceDiff(slices *[]Slice, indentationLevel int) string {
 
 		printBuilder.WriteString(prefix)
 		printBuilder.WriteString(indentation)
-		printBuilder.WriteString(formatValue("", pair[1]))
+		printBuilder.WriteString(formatValue(prefix+indentation, pair[1]))
 
 		shouldAddComma := true
 
