@@ -20,9 +20,9 @@ func printMapDiff(diff *Map, indentationLevel int, sign *rune) string {
 		isLastPrint := diffIndex == diffCount-1
 		hasPreviousPrint := len(previousPrint) > 0
 
-		currentPrint := printPropertyDiff(
+		currentPrint := printValueDiff(
 			sign,
-			propertyKey,
+			&propertyKey,
 			propertyValue,
 			indentationLevel,
 		)
@@ -75,33 +75,43 @@ func printMapDiff(diff *Map, indentationLevel int, sign *rune) string {
 	return printBuilder.String()
 }
 
-func printPropertyDiff(
+func printValueDiff(
 	parentSign *rune,
-	propertyKey string,
-	propertyValue any,
+	key *string,
+	value any,
 	indentationLevel int,
 ) string {
 	var propertySign rune
+	var propertyKey string
 	var propertyPrint strings.Builder
 
-	if parentSign != nil && *parentSign != unchanged {
+	if parentSign != nil && *parentSign != unchanged && *parentSign != nested {
 		propertySign = *parentSign
-	} else {
-		propertySign = rune(propertyKey[0])
-		propertyKey = propertyKey[1:]
-	}
 
-	propertyNames := strings.Split(propertyKey, ".")
-	propertyName := propertyNames[len(propertyNames)-1]
+		if key != nil {
+			propertyKey = *key
+		}
+	} else if key != nil {
+		propertySign = rune((*key)[0])
+		propertyKey = (*key)[1:]
+	} else {
+		propertySign = unchanged
+	}
 
 	prefix, indentation := getPrefixSpacers(propertySign, indentationLevel)
 
 	propertyPrint.WriteString(prefix)
 	propertyPrint.WriteString(indentation)
-	propertyPrint.WriteString(propertyName)
-	propertyPrint.WriteString(": ")
 
-	switch value := (propertyValue).(type) {
+	if len(propertyKey) > 0 {
+		propertyNames := strings.Split(propertyKey, ".")
+		propertyName := propertyNames[len(propertyNames)-1]
+
+		propertyPrint.WriteString(propertyName)
+		propertyPrint.WriteString(": ")
+	}
+
+	switch value := value.(type) {
 	case Map:
 		propertyPrint.WriteString("{")
 		propertyPrint.WriteString("\n")
@@ -112,14 +122,14 @@ func printPropertyDiff(
 		propertyPrint.WriteString(formatValue(prefix+indentation, value))
 	}
 
-	switch value := (propertyValue).(type) {
+	switch value := value.(type) {
 	case Map:
 		propertyPrint.WriteString(printMapDiff(&value, indentationLevel+1, &propertySign))
 	case []Slice:
 		propertyPrint.WriteString(printSliceDiff(&value, indentationLevel+1))
 	}
 
-	switch (propertyValue).(type) {
+	switch value.(type) {
 	case Map:
 		propertyPrint.WriteString("\n")
 		propertyPrint.WriteString(prefix)
@@ -145,14 +155,8 @@ func printSliceDiff(slices *[]Slice, indentationLevel int) string {
 			panic("malformed slice pair for slice diff")
 		}
 
-		currentSign := pair[0].(rune)
-		prefix, indentation := getPrefixSpacers(currentSign, indentationLevel)
-
-		printBuilder.WriteString(prefix)
-		printBuilder.WriteString(indentation)
-		printBuilder.WriteString(formatValue(prefix+indentation, pair[1]))
-
 		shouldAddComma := true
+		currentSign := pair[0].(rune)
 
 		isLast := index == totalCount-1
 		isBeforeLast := index == totalCount-2
@@ -163,6 +167,8 @@ func printSliceDiff(slices *[]Slice, indentationLevel int) string {
 			upcomingSign := (*slices)[index+1][0].(rune)
 			shouldAddComma = !isChangeSet(currentSign, upcomingSign)
 		}
+
+		printBuilder.WriteString(printValueDiff(&currentSign, nil, pair[1], indentationLevel))
 
 		if shouldAddComma {
 			printBuilder.WriteString(",")

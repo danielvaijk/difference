@@ -45,7 +45,7 @@ func compareMaps(diff, expected, received *Map, includeCommon bool, propertyPath
 
 			if areMapsDifferent {
 				hasDifferences = true
-				registerNestedDiff(diff, expectedKey, mapDiff)
+				registerNestedPropertyDiff(diff, expectedKey, mapDiff)
 			}
 		case Slice:
 			sliceDiff := make([]Slice, 0)
@@ -59,13 +59,13 @@ func compareMaps(diff, expected, received *Map, includeCommon bool, propertyPath
 
 			if areSlicesDifferent {
 				hasDifferences = true
-				registerNestedDiff(diff, expectedKey, sliceDiff)
+				registerNestedPropertyDiff(diff, expectedKey, sliceDiff)
 			}
 		default:
 			if expectedValue != receivedValue {
 				hasDifferences = true
 				registerChangedProperty(diff, expectedKey, expectedValue, receivedValue)
-			} else {
+			} else if includeCommon {
 				registerMutualProperty(diff, expectedKey, expectedValue)
 			}
 		}
@@ -105,23 +105,51 @@ func compareSlices(diff *[]Slice, expected, received *Slice) bool {
 			continue
 		}
 
-		isBothMutual := false
 		expectedValue := (*expected)[expectedIndex]
 
 		switch expectedValue := expectedValue.(type) {
 		case Map:
-			isBothMutual = reflect.DeepEqual(expectedValue, receivedValue)
-		case Slice:
-			isBothMutual = reflect.DeepEqual(expectedValue, receivedValue)
-		default:
-			isBothMutual = expectedValue == receivedValue
-		}
+			mapDiff := make(Map)
+			receivedMap := receivedValue.(Map)
 
-		if isBothMutual {
-			registerMutualValue(diff, expectedValue)
-			expectedIndex++
-			receivedIndex++
-			continue
+			areMapsDifferent := compareMaps(
+				&mapDiff,
+				&expectedValue,
+				&receivedMap,
+				true,
+			)
+
+			if areMapsDifferent {
+				hasDifferences = true
+				expectedIndex++
+				receivedIndex++
+				registerNestedDiffValue(diff, mapDiff)
+				continue
+			}
+		case Slice:
+			sliceDiff := make([]Slice, 0)
+			receivedSlice := receivedValue.(Slice)
+
+			areSlicesDifferent := compareSlices(
+				&sliceDiff,
+				&expectedValue,
+				&receivedSlice,
+			)
+
+			if areSlicesDifferent {
+				hasDifferences = true
+				expectedIndex++
+				receivedIndex++
+				registerNestedDiffValue(diff, sliceDiff)
+				continue
+			}
+		default:
+			if expectedValue == receivedValue {
+				registerMutualValue(diff, expectedValue)
+				expectedIndex++
+				receivedIndex++
+				continue
+			}
 		}
 
 		// Any differences at the start are considered removals.
@@ -159,7 +187,7 @@ func registerMutualProperty(diff *Map, propertyKey string, propertyValue any) {
 	(*diff)[string(unchanged)+propertyKey] = propertyValue
 }
 
-func registerNestedDiff(diff *Map, propertyKey string, nestedDiff any) {
+func registerNestedPropertyDiff(diff *Map, propertyKey string, nestedDiff any) {
 	(*diff)[string(unchanged)+propertyKey] = nestedDiff
 }
 
@@ -178,4 +206,8 @@ func registerChangedValue(diff *[]Slice, expectedValue, receivedValue any) {
 
 func registerMutualValue(diff *[]Slice, mutualValue any) {
 	*diff = append(*diff, Slice{unchanged, mutualValue})
+}
+
+func registerNestedDiffValue(diff *[]Slice, valueDiff any) {
+	*diff = append(*diff, Slice{nested, valueDiff})
 }
