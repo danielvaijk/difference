@@ -4,7 +4,9 @@ import (
 	"reflect"
 )
 
-func compareMaps(diff, expected, received *Map, propertyPath ...string) {
+func compareMaps(diff, expected, received *Map, includeCommon bool, propertyPath ...string) bool {
+	hasDifferences := false
+
 	if len(propertyPath) == 0 {
 		propertyPath = append(propertyPath, "")
 	}
@@ -14,6 +16,7 @@ func compareMaps(diff, expected, received *Map, propertyPath ...string) {
 		expectedKey = propertyPath[0] + expectedKey
 
 		if !wasFound {
+			hasDifferences = true
 			registerRemovedProperty(diff, expectedKey, expectedValue)
 			continue
 		}
@@ -22,6 +25,7 @@ func compareMaps(diff, expected, received *Map, propertyPath ...string) {
 		receivedType := reflect.TypeOf(receivedValue)
 
 		if expectedType != receivedType {
+			hasDifferences = true
 			registerChangedProperty(diff, expectedKey, expectedValue, receivedValue)
 			continue
 		}
@@ -31,41 +35,50 @@ func compareMaps(diff, expected, received *Map, propertyPath ...string) {
 			mapDiff := make(Map)
 			receivedMap := receivedValue.(Map)
 
-			compareMaps(
+			areMapsDifferent := compareMaps(
 				&mapDiff,
 				&expectedValue,
 				&receivedMap,
+				includeCommon,
 				expectedKey+".",
 			)
 
-			if len(mapDiff) > 0 {
+			if areMapsDifferent {
+				hasDifferences = true
 				registerNestedDiff(diff, expectedKey, mapDiff)
 			}
 		case Slice:
 			sliceDiff := make([]Slice, 0)
 			receivedSlice := receivedValue.(Slice)
 
-			hasDifferences := compareSlices(
+			areSlicesDifferent := compareSlices(
 				&sliceDiff,
 				&expectedValue,
 				&receivedSlice,
 			)
 
-			if hasDifferences {
+			if areSlicesDifferent {
+				hasDifferences = true
 				registerNestedDiff(diff, expectedKey, sliceDiff)
 			}
 		default:
 			if expectedValue != receivedValue {
+				hasDifferences = true
 				registerChangedProperty(diff, expectedKey, expectedValue, receivedValue)
+			} else {
+				registerMutualProperty(diff, expectedKey, expectedValue)
 			}
 		}
 	}
 
 	for receivedKey, receivedValue := range *received {
 		if _, wasFound := (*expected)[receivedKey]; !wasFound {
+			hasDifferences = true
 			registerAddedProperty(diff, propertyPath[0]+receivedKey, receivedValue)
 		}
 	}
+
+	return hasDifferences
 }
 
 func compareSlices(diff *[]Slice, expected, received *Slice) bool {
@@ -140,6 +153,10 @@ func registerAddedProperty(diff *Map, propertyKey string, propertyValue any) {
 func registerChangedProperty(diff *Map, propertyKey string, expectedValue, receivedValue any) {
 	registerRemovedProperty(diff, propertyKey, expectedValue)
 	registerAddedProperty(diff, propertyKey, receivedValue)
+}
+
+func registerMutualProperty(diff *Map, propertyKey string, propertyValue any) {
+	(*diff)[string(unchanged)+propertyKey] = propertyValue
 }
 
 func registerNestedDiff(diff *Map, propertyKey string, nestedDiff any) {
