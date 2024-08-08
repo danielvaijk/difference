@@ -25,7 +25,7 @@ func BetweenJson(expected, received io.Reader) (*JsonDifference, error) {
 		return nil, err
 	}
 
-	compareMaps(&diff, &expectedJson, &receivedJson)
+	compareMaps(&diff, &expectedJson, &receivedJson, false)
 
 	return &JsonDifference{&diff}, nil
 }
