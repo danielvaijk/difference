@@ -4,6 +4,7 @@ const (
 	added     = '+'
 	removed   = '-'
 	unchanged = ' '
+	nested    = '^'
 )
 
 func isChangeSet(currentSign rune, upcomingSign rune) bool {
