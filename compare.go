@@ -2,6 +2,7 @@ package difference
 
 import (
 	"reflect"
+	"slices"
 )
 
 func compareMaps(diff, expected, received *Map, includeCommon bool, propertyPath ...string) bool {
@@ -81,90 +82,86 @@ func compareMaps(diff, expected, received *Map, includeCommon bool, propertyPath
 	return hasDifferences
 }
 
-func compareSlices(diff *[]Slice, expected, received *Slice) bool {
+func compareSlices(diff *[]Slice, expectedPtr, receivedPtr *Slice) bool {
 	expectedIndex := 0
 	receivedIndex := 0
 
+	expected := *expectedPtr
+	received := *receivedPtr
+
 	hasDifferences := false
 
-	for {
-		isExpectedOutOfBounds := expectedIndex > len(*expected)-1
-		isReceivedOutOfBounds := receivedIndex > len(*received)-1
+	for expectedIndex < len(expected) || receivedIndex < len(received) {
+		if expectedIndex < len(expected) && receivedIndex < len(received) {
+			switch expectedValue := expected[expectedIndex].(type) {
+			case Map:
+				mapDiff := make(Map)
+				receivedMap := received[receivedIndex].(Map)
 
-		if isReceivedOutOfBounds {
-			break
-		}
+				areMapsDifferent := compareMaps(
+					&mapDiff,
+					&expectedValue,
+					&receivedMap,
+					true,
+				)
 
-		receivedValue := (*received)[receivedIndex]
+				if areMapsDifferent {
+					hasDifferences = true
+					registerNestedDiffValue(diff, mapDiff)
+				} else {
+					registerMutualValue(diff, expectedValue)
+				}
 
-		// Any differences at the end are considered additions.
-		if isExpectedOutOfBounds {
-			registerAddedValue(diff, receivedValue)
-			hasDifferences = true
-			receivedIndex++
-			continue
-		}
-
-		expectedValue := (*expected)[expectedIndex]
-
-		switch expectedValue := expectedValue.(type) {
-		case Map:
-			mapDiff := make(Map)
-			receivedMap := receivedValue.(Map)
-
-			areMapsDifferent := compareMaps(
-				&mapDiff,
-				&expectedValue,
-				&receivedMap,
-				true,
-			)
-
-			if areMapsDifferent {
-				hasDifferences = true
 				expectedIndex++
 				receivedIndex++
-				registerNestedDiffValue(diff, mapDiff)
-				continue
-			}
-		case Slice:
-			sliceDiff := make([]Slice, 0)
-			receivedSlice := receivedValue.(Slice)
+			case Slice:
+				sliceDiff := make([]Slice, 0)
+				receivedSlice := received[receivedIndex].(Slice)
 
-			areSlicesDifferent := compareSlices(
-				&sliceDiff,
-				&expectedValue,
-				&receivedSlice,
-			)
+				areSlicesDifferent := compareSlices(
+					&sliceDiff,
+					&expectedValue,
+					&receivedSlice,
+				)
 
-			if areSlicesDifferent {
-				hasDifferences = true
+				if areSlicesDifferent {
+					hasDifferences = true
+					registerNestedDiffValue(diff, sliceDiff)
+				} else {
+					registerMutualValue(diff, expectedValue)
+				}
+
 				expectedIndex++
 				receivedIndex++
-				registerNestedDiffValue(diff, sliceDiff)
-				continue
+			default:
+				if expectedValue == received[receivedIndex] {
+					// Both values are the same.
+					registerMutualValue(diff, expectedValue)
+					expectedIndex++
+					receivedIndex++
+				} else if slices.Contains(received[receivedIndex:], expected[expectedIndex]) {
+					// The current expected value is received later: show the current received value as superfluous.
+					registerAddedValue(diff, received[receivedIndex])
+					hasDifferences = true
+					receivedIndex++
+				} else {
+					// The current expected value is missing.
+					registerRemovedValue(diff, expected[expectedIndex])
+					hasDifferences = true
+					expectedIndex++
+				}
 			}
-		default:
-			if expectedValue == receivedValue {
-				registerMutualValue(diff, expectedValue)
-				expectedIndex++
-				receivedIndex++
-				continue
-			}
-		}
-
-		// Any differences at the start are considered removals.
-		if receivedIndex == 0 {
-			registerRemovedValue(diff, expectedValue)
+		} else if expectedIndex < len(expected) {
+			// We ran out of received values but expected more: show them as missing.
+			registerRemovedValue(diff, expected[expectedIndex])
 			hasDifferences = true
 			expectedIndex++
-			continue
+		} else if receivedIndex < len(received) {
+			// We ran out of expected values but received more: show them as superfluous.
+			registerAddedValue(diff, received[receivedIndex])
+			hasDifferences = true
+			receivedIndex++
 		}
-
-		// Any differences between the start and end are considered changes.
-		registerChangedValue(diff, expectedValue, receivedValue)
-		hasDifferences = true
-		expectedIndex++
-		receivedIndex++
 	}
 
 	return hasDifferences
@@ -197,11 +194,6 @@ func registerRemovedValue(diff *[]Slice, value any) {
 
 func registerAddedValue(diff *[]Slice, value any) {
 	*diff = append(*diff, Slice{added, value})
-}
-
-func registerChangedValue(diff *[]Slice, expectedValue, receivedValue any) {
-	registerRemovedValue(diff, expectedValue)
-	registerAddedValue(diff, receivedValue)
 }
 
 func registerMutualValue(diff *[]Slice, mutualValue any) {
