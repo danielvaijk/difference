@@ -10,6 +10,7 @@ import (
 	"io"
 )
 
+// ErrJsonDecode is the error returned when JSON decoding fails.
 var ErrJsonDecode = errors.New("failed to decode json")
 
 func decodeJsonIntoMap(reader io.Reader, buffer *Map) error {
