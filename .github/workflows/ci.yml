@@ -1,0 +1,16 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: golang:1.22-alpine
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Build
+        run: go build -v ./...
